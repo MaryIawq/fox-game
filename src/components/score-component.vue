@@ -1,10 +1,12 @@
 <script setup>
-
+defineProps({
+  score: Number
+})
 </script>
 
 <template>
 <div class="score-container">
-  <span>Score:16</span>
+  <span>Score:{{score}}</span>
   <img src="/decor/moon.png"
        alt="moon">
 </div>
