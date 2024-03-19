@@ -3,15 +3,20 @@ import {onMounted, onUnmounted, ref, watch} from "vue";
 
 import BackgroundItemsComponent from "@/components/background-items-component.vue";
 import ScoreComponent from "@/components/score-component.vue";
-import HouseComponent from "@/components/house-components/house-component.vue";
 import FloorComponent from "@/components/floor-component.vue";
+import SleepSymbols from "@/components/sleep-symbols.vue";
 
 const fox = {
   position: ref(0),
   lookingLeft: ref(false),
-  width: 150
+  width: 150,
+  isAwake: ref(true)
 }
 
+const house = {
+  position: window.innerWidth - 340,
+  sleepSymbolsVisible: ref(false)
+}
 const handleKeyPress = (event) => {
   if (event.code === 'ArrowLeft') {
     if (fox.position.value > 0) {
@@ -25,7 +30,12 @@ const handleKeyPress = (event) => {
     }
   }
 }
-
+const toggleFoxSleep = () => {
+  if(fox.position.value + fox.width >= house.position) {
+    fox.isAwake.value = !fox.isAwake.value;
+    house.sleepSymbolsVisible.value = !house.sleepSymbolsVisible.value;
+  }
+};
 
 
 onMounted(() => {
@@ -41,8 +51,14 @@ onMounted(() => {
       <div class="items-container">
         <img class="item" src="">
       </div>
-      <img class="fox" src="/fox.png" alt="game-character" :style="{ left: `${fox.position.value}px`, transform: fox.lookingLeft.value ? 'scaleX(-1)' : 'scaleX(1)' }">
-      <house-component></house-component>
+      <img
+          v-if="fox.isAwake.value"
+          class="fox" src="/fox.png"
+          alt="game-character"
+          :style="{ left: `${fox.position.value}px`, transform: fox.lookingLeft.value ? 'scaleX(-1)' : 'scaleX(1)' }">
+
+      <img @click="toggleFoxSleep" src="/house/house-for-fox.png" alt="house" class="house">
+      <sleep-symbols v-if="house.sleepSymbolsVisible.value"></sleep-symbols>
       <floor-component></floor-component>
     </div>
   </div>
@@ -70,8 +86,21 @@ onMounted(() => {
   width: 150px;
   z-index: 3
 }
+
 .item {
   width: 20px;
   position: absolute;
+}
+
+.house {
+  position: absolute;
+  width: 300px;
+  bottom: 20px;
+  right: 30px;
+  z-index: 2;
+}
+
+.house:hover {
+  cursor: pointer;
 }
 </style>
