@@ -1,15 +1,10 @@
 # fox-game
-
-This template should help get you started developing with Vue 3 in Vite.
-
-## Recommended IDE Setup
-
-[VSCode](https://code.visualstudio.com/) + [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur).
-
-## Customize configuration
-
-See [Vite Configuration Reference](https://vitejs.dev/config/).
-
+A js game in which you need to catch falling objects.
+The number of caught items is stored in localstorage.
+The character can enter the house (you need to click on the house).
+## Screenshots:
+![1](https://github.com/MaryIawq/fox-game/assets/152361912/c2b257b7-27a9-421f-b032-05ef6aa6820f)
+![2](https://github.com/MaryIawq/fox-game/assets/152361912/7465c196-e220-4dd1-ab88-16fd463fb60a)
 ## Project Setup
 
 ```sh
