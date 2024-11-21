@@ -1,108 +1,138 @@
 <script setup>
-import {onMounted, onUnmounted, ref, watch} from "vue";
+import { onMounted, onUnmounted, ref, watch } from "vue";
+
+import { scoreService } from "./service/score";
+import { fallingItemsService } from "./service/fallingItems";
 
 import BackgroundItemsComponent from "@/components/background-items-component.vue";
 import ScoreComponent from "@/components/score-component.vue";
 import FloorComponent from "@/components/grass-component.vue";
 import SleepSymbols from "@/components/sleep-symbols.vue";
 
+const score = ref(0);
+const fallingItems = ref([]);
+const fallSpeed = 1.7;
+let generationInterval = null;
+const isTabFocused = ref(true);
+
 const fox = {
   position: ref(0),
+  targetPosition: ref(0),
   lookingLeft: ref(false),
   width: 160,
-  isAwake: ref(true)
-}
+  isAwake: ref(true),
+  speed: 20,
+};
 
 const house = {
   position: window.innerWidth - 340,
-  sleepSymbolsVisible: ref(false)
-}
+  sleepSymbolsVisible: ref(false),
+  sleepDialogVisible: false,
+};
+
 const handleKeyPress = (event) => {
-  if (event.code === 'ArrowLeft') {
-    if (fox.position.value > 0) {
-      fox.position.value -= 15;
+  if (event.code === "ArrowLeft") {
+    if (fox.targetPosition.value > 0) {
+      fox.targetPosition.value -= fox.speed;
       fox.lookingLeft.value = true;
     }
-  } else if (event.code === 'ArrowRight') {
-    if (fox.position.value + fox.width < window.innerWidth - 50) {
-      fox.position.value += 15;
-      fox.lookingLeft.value = false
+  } else if (event.code === "ArrowRight") {
+    if (fox.targetPosition.value + fox.width < window.innerWidth - 50) {
+      fox.targetPosition.value += fox.speed;
+      fox.lookingLeft.value = false;
     }
   }
-}
+};
+
+const updateFoxPosition = () => {
+  const offset = 0.1;
+  fox.position.value +=
+      (fox.targetPosition.value - fox.position.value) * offset;
+
+  if (fox.position.value + fox.width >= house.position && fox.isAwake.value) {
+    house.sleepDialogVisible = true;
+  } else {
+    house.sleepDialogVisible = false;
+  }
+
+  requestAnimationFrame(updateFoxPosition);
+};
+
 const toggleFoxSleep = () => {
-  if(fox.position.value + fox.width >= house.position) {
+  if (fox.position.value + fox.width >= house.position) {
     fox.isAwake.value = !fox.isAwake.value;
     house.sleepSymbolsVisible.value = !house.sleepSymbolsVisible.value;
   }
 };
 
-const score = ref(0)
-const fallingItems = ref([]);
-const fallSpeed = 15
-
 const checkCollision = (item) => {
   const foxLeft = fox.position.value;
   const foxRight = fox.position.value + fox.width;
-  const itemLeft = item.positionX
-  const itemRight = item.positionX + 45
+  const itemLeft = item.positionX;
+  const itemRight = item.positionX + 45;
   const itemBottom = item.positionY + 45;
-  if (itemBottom >= window.innerHeight - 130 && itemLeft >= foxLeft && itemRight <= foxRight ){
-    score.value++
-    fallingItems.value.splice(fallingItems.value.indexOf(item), 1)
-  }
-}
-const removeItem = (item) => {
-  const grassBlockHeight = 55;
-  if (item.positionY + 45 >=  window.innerHeight - grassBlockHeight) {
+  if (
+      itemBottom >= window.innerHeight - 130 &&
+      itemLeft >= foxLeft &&
+      itemRight <= foxRight
+  ) {
+    score.value++;
     fallingItems.value.splice(fallingItems.value.indexOf(item), 1);
   }
-}
-setInterval(() => {
-  fallingItems.value.forEach(item => {
+};
+
+const updateFallingItems = () => {
+  fallingItems.value.forEach((item) => {
     item.positionY += fallSpeed;
     checkCollision(item);
-    removeItem(item);
+    fallingItemsService.removeItem(fallingItems.value, item);
   });
-}, 100);
-
-onMounted(() =>
-    { window.addEventListener('keydown', handleKeyPress)
-      loadScoreFromLocalStorage()
-      setInterval(() => {
-        const itemsImages = [
-          "cheese.png",
-          "donuts.png",
-          "diamond.png",
-          "banana.png",
-          "burger.png",
-          "popcorn.png"
-        ];
-        const randomItem = itemsImages[Math.floor(Math.random() * itemsImages.length)];
-        const itemsContainer = window.innerWidth - 110;
-        const randomX = Math.random() * itemsContainer
-        fallingItems.value.push({
-          positionX: randomX,
-          positionY: -50,
-          image: `items/${randomItem}`,
-          caught: false
-        });
-      }, 1000);
-    }
-)
-const saveScoreToLocalStorage = () => {
-  localStorage.setItem('FoxGameScore:', score.value);
+  requestAnimationFrame(updateFallingItems);
 };
-watch(score, () => {
-  saveScoreToLocalStorage();
-});
-const loadScoreFromLocalStorage = () => {
-  const savedScore = localStorage.getItem('FoxGameScore:');
-  if (savedScore !== null) {
-    score.value = parseInt(savedScore, 10);
+
+const startItemGeneration = () => {
+  if (generationInterval === null) {
+    generationInterval = setInterval(
+        () => fallingItemsService.generateFallingItems(fallingItems.value),
+        1000
+    );
   }
 };
 
+const stopItemGeneration = () => {
+  if (generationInterval !== null) {
+    clearInterval(generationInterval);
+    generationInterval = null;
+  }
+};
+
+const handleTabVisibilityChange = () => {
+  if (document.hidden) {
+    isTabFocused.value = false;
+    stopItemGeneration();
+  } else {
+    isTabFocused.value = true;
+    startItemGeneration();
+  }
+};
+
+onMounted(() => {
+  window.addEventListener("keydown", handleKeyPress);
+  score.value = scoreService.loadScore();
+
+  if (isTabFocused.value) {
+    startItemGeneration();
+  }
+
+  requestAnimationFrame(updateFallingItems);
+  requestAnimationFrame(updateFoxPosition);
+
+  document.addEventListener("visibilitychange", handleTabVisibilityChange);
+});
+
+watch(score, () => {
+  scoreService.saveScore(score.value);
+});
 </script>
 
 <template>
@@ -110,18 +140,46 @@ const loadScoreFromLocalStorage = () => {
     <background-items-component></background-items-component>
     <score-component :score="score"></score-component>
     <div class="main">
-      <div class="items-container" v-for="(item, index) in fallingItems">
-        <img v-if="!item.caught" :key="index" class="item" :src="item.image"
-             :style="{ left: `${item.positionX}px`, top: `${item.positionY}px`}" alt="falling object">
+      <div
+          class="items-container"
+          v-for="(item, index) in fallingItems"
+          :key="item"
+      >
+        <img
+            v-if="!item.caught"
+            :key="index"
+            class="item"
+            :src="item.image"
+            :style="{
+left: `${item.positionX}px`,
+top: `${item.positionY}px`,
+}"
+            alt="falling object"
+        />
       </div>
       <img
           v-if="fox.isAwake.value"
-          class="fox" src="/fox.png"
+          class="fox"
+          src="/fox.png"
           alt="game-character"
-          :style="{ left: `${fox.position.value}px`, transform: fox.lookingLeft.value ? 'scaleX(-1)' : 'scaleX(1)' }">
+          :style="{
+left: `${fox.position.value}px`,
+transform: fox.lookingLeft.value
+? 'scaleX(-1)'
+: 'scaleX(1)',
+}"
+      />
 
-      <img @click="toggleFoxSleep" src="/house/house-for-fox.png" alt="house" class="house">
-      <sleep-symbols v-if="house.sleepSymbolsVisible.value"></sleep-symbols>
+      <div @click="toggleFoxSleep" class="house">
+        <div v-if="house.sleepDialogVisible" class="dialog-box">
+          <p>Click to get rest!</p>
+        </div>
+
+        <img src="/house/house-for-fox.png" alt="house" />
+      </div>
+      <sleep-symbols
+          v-if="house.sleepSymbolsVisible.value"
+      ></sleep-symbols>
       <floor-component></floor-component>
     </div>
   </div>
@@ -147,7 +205,7 @@ const loadScoreFromLocalStorage = () => {
   position: absolute;
   bottom: 35px;
   width: 150px;
-  z-index: 3
+  z-index: 3;
 }
 
 .item {
@@ -167,6 +225,19 @@ const loadScoreFromLocalStorage = () => {
 .house:hover {
   cursor: pointer;
 }
+
+.dialog-box {
+  position: absolute;
+  bottom: 150px;
+  right: 30px;
+  background-color: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 10px;
+  border-radius: 5px;
+  z-index: 10;
+  font-size: 18px;
+}
+
 .item {
   position: absolute;
   width: 45px;
